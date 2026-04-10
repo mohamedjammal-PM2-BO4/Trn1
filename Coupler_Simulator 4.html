@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coupler Simulator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;700;800&display=swap');
+:root{
+  --bg:#f5f7fa;
+  --bg2:#ffffff;
+  --bg3:#eef1f6;
+  --panel:#ffffff;
+  --bdr:#d0d8e8;
+  --bdr2:#b0bcda;
+  --acc:#1a6fd4;
+  --a2:#0a8f6a;
+  --a3:#d4500a;
+  --tx:#111827;
+  --tx2:#374151;
+  --tx3:#6b7280;
+  --good:#0a7a5a;
+  --warn:#b45309;
+  --bad:#c0392b;
+  --s11:#c0392b;
+  --s21:#1a6fd4;
+  --s31:#0a8f2a;
+  --s41:#7c3aed;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:'Syne',sans-serif;min-height:100vh}
+.wrap{max-width:1300px;margin:0 auto;padding:20px 16px}
+header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:18px;border-bottom:2px solid var(--bdr2);padding-bottom:16px}
+.htitle{font-size:22px;font-weight:800;letter-spacing:-0.5px;color:var(--tx)}
+.htitle em{color:var(--acc);font-style:normal}
+.hsub{font-size:11px;color:var(--tx3);margin-top:4px;font-family:'JetBrains Mono',monospace}
+.hbadges{display:flex;gap:7px;flex-wrap:wrap}
+.bdg{font-size:10px;font-family:'JetBrains Mono',monospace;padding:4px 10px;border-radius:5px;letter-spacing:0.3px;font-weight:500}
+.bdg-b{background:#dbeafe;border:1px solid #93c5fd;color:#1e40af}
+.bdg-g{background:#d1fae5;border:1px solid #6ee7b7;color:#065f46}
+.main-grid{display:grid;grid-template-columns:300px 1fr;gap:16px}
+@media(max-width:860px){.main-grid{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--bdr);border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.06)}
+.ptitle{font-size:9px;font-family:'JetBrains Mono',monospace;font-weight:600;letter-spacing:2.5px;color:var(--acc);text-transform:uppercase;margin-bottom:12px;padding-bottom:7px;border-bottom:1px solid var(--bdr)}
+.pr{margin-bottom:14px}
+.ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:6px}
+.pl-w{display:flex;align-items:center;gap:6px}
+.pl{font-size:11px;color:var(--tx2);font-family:'JetBrains Mono',monospace;font-weight:500}
+.pv{font-size:11px;font-weight:700;color:var(--acc);font-family:'JetBrains Mono',monospace;background:#dbeafe;padding:2px 8px;border-radius:4px;border:1px solid #93c5fd;min-width:75px;text-align:right;white-space:nowrap}
+input[type=range]{width:100%;-webkit-appearance:none;height:4px;border-radius:2px;outline:none;cursor:pointer;background:linear-gradient(to right,var(--acc) var(--pct,0%),#cbd5e1 var(--pct,0%))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--acc);border:2px solid #fff;box-shadow:0 1px 4px rgba(26,111,212,0.4);cursor:pointer;transition:transform 0.12s}
+input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.25)}
+.qmark{width:18px;height:18px;border-radius:50%;background:#dbeafe;border:1px solid #93c5fd;color:#1e40af;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;user-select:none;transition:all 0.14s;font-family:'JetBrains Mono',monospace}
+.qmark:hover{background:#93c5fd;transform:scale(1.15)}
+/* Tooltip modal */
+.tt-ov{display:none;position:fixed;inset:0;z-index:3000;align-items:center;justify-content:center;background:rgba(0,0,0,0.55)}
+.tt-ov.show{display:flex}
+.tt-box{background:#fff;border:1px solid var(--bdr2);border-radius:14px;padding:24px;max-width:520px;width:92%;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.18)}
+.tt-x{position:absolute;top:12px;right:15px;background:none;border:none;color:var(--tx3);font-size:20px;cursor:pointer;padding:4px;line-height:1}
+.tt-title{font-size:15px;font-weight:700;color:var(--acc);margin-bottom:10px}
+.tt-body{font-size:12px;color:var(--tx2);line-height:2;font-family:'JetBrains Mono',monospace}
+.tt-body b{color:var(--tx);font-weight:600}
+.tt-eff{margin-top:11px;padding:10px 13px;background:#d1fae5;border:1px solid #6ee7b7;border-radius:8px;color:#065f46;font-size:11px;line-height:1.9}
+.tt-eq{margin-top:9px;padding:9px 13px;background:#dbeafe;border:1px solid #93c5fd;border-radius:8px;color:#1e40af;font-size:11px;line-height:1.9}
+/* Computed chips */
+.ig{display:grid;grid-template-columns:repeat(2,1fr);gap:5px}
+.ii{background:var(--bg3);border:1px solid var(--bdr);border-radius:7px;padding:7px 10px}
+.il{font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--tx3);letter-spacing:1px;text-transform:uppercase;margin-bottom:2px;font-weight:500}
+.iv{font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--acc)}
+/* Right column */
+.right-col{display:flex;flex-direction:column;gap:12px}
+/* Metric cards */
+.mg{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+@media(max-width:560px){.mg{grid-template-columns:repeat(2,1fr)}}
+.mc{background:var(--panel);border:2px solid var(--bdr);border-radius:10px;padding:12px 14px;transition:border-color 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.05)}
+.mc.pass{border-color:#6ee7b7;background:#f0fdf4}
+.mc.fail{border-color:#fca5a5;background:#fff5f5}
+.mc.close{border-color:#fcd34d;background:#fffbeb}
+.mlb{font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--tx3);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;font-weight:500}
+.mv{font-size:20px;font-weight:800;font-family:'JetBrains Mono',monospace;line-height:1;transition:color 0.18s;color:var(--tx)}
+.mv.pass{color:#065f46}.mv.fail{color:#991b1b}.mv.close{color:#92400e}
+.msb{font-size:9px;color:var(--tx3);margin-top:3px;font-family:'JetBrains Mono',monospace}
+.sp{display:inline-block;font-size:9px;font-family:'JetBrains Mono',monospace;padding:2px 7px;border-radius:3px;margin-top:3px;font-weight:600}
+.sp.pass{background:#d1fae5;color:#065f46;border:1px solid #6ee7b7}
+.sp.fail{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}
+.sp.close{background:#fef3c7;color:#92400e;border:1px solid #fcd34d}
+/* Marker strip */
+.mkrow{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
+@media(max-width:600px){.mkrow{grid-template-columns:repeat(3,1fr)}}
+.mcard{background:var(--panel);border:1px solid var(--bdr);border-radius:8px;padding:9px 12px;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+.mklb{font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--tx3);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;font-weight:500}
+.mkval{font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--tx)}
+/* Chart panel */
+.cpanel{background:var(--panel);border:1px solid var(--bdr);border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06)}
+.chdr{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.leg{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.li{display:flex;align-items:center;gap:5px;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--tx2);cursor:pointer;user-select:none;transition:opacity 0.18s;font-weight:500}
+.li.off{opacity:0.3}
+.ld{width:22px;height:3px;border-radius:2px;flex-shrink:0}
+.cw{position:relative;width:100%;height:320px}
+.chint{font-size:10px;color:var(--tx3);font-family:'JetBrains Mono',monospace;margin-top:7px;text-align:center}
+/* PCB visual */
+.pcb-panel{background:var(--panel);border:1px solid var(--bdr);border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06)}
+.pcb-wrap{width:100%;overflow-x:auto}
+/* Equation sheet */
+.eq-sheet{background:var(--panel);border:1px solid var(--bdr);border-radius:12px;padding:16px;margin-top:4px;box-shadow:0 1px 4px rgba(0,0,0,0.06)}
+.eq-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+@media(max-width:1050px){.eq-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:640px){.eq-grid{grid-template-columns:repeat(2,1fr)}}
+.eq-block{background:var(--bg3);border:1px solid var(--bdr);border-radius:9px;padding:10px 12px}
+.eq-num{display:inline-flex;width:20px;height:20px;border-radius:50%;background:#dbeafe;border:1px solid #93c5fd;color:#1e40af;font-size:10px;font-weight:700;align-items:center;justify-content:center;margin-bottom:7px;font-family:'JetBrains Mono',monospace}
+.eq-src{font-size:9px;color:var(--tx3);font-family:'JetBrains Mono',monospace;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:6px;font-weight:500}
+.eq-line{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--tx2);line-height:1.9;border-bottom:1px solid var(--bdr);padding-bottom:1px;margin-bottom:1px}
+.eq-line:last-child{border-bottom:none}
+.eq-line em{color:#065f46;font-style:normal;font-weight:600}
+footer{margin-top:18px;padding-top:12px;border-top:1px solid var(--bdr);font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--tx3);text-align:center;line-height:1.8}
+</style>
+</head>
+<body>
+<div class="tt-ov" id="ttOv" onclick="closeTT(event)">
+  <div class="tt-box">
+    <button class="tt-x" onclick="closeTT(null,true)">x</button>
+    <div class="tt-title" id="ttT"></div>
+    <div class="tt-body" id="ttB"></div>
+  </div>
+</div>
+<div class="wrap">
+<header>
+  <div>
+    <div class="htitle">Coupler <em>Simulator</em></div>
+    <p class="hsub">Microstrip directional coupler · S-parameter analysis · QUCS-verified · 600 MHz design</p>
+  </div>
+  <div class="hbadges">
+    <span class="bdg bdg-b">TRN553 - Seneca College SEMET</span>
+    <span class="bdg bdg-g">Kirschning-Jansen 1984 · Pozar 2012</span>
+  </div>
+</header>
+
+<div class="main-grid">
+  <!-- LEFT: sliders -->
+  <div>
+    <div class="panel">
+      <div class="ptitle">Substrate - FR4</div>
+      <div class="pr"><div class="ph"><div class="pl-w"><span class="pl">Frequency f</span><span class="qmark" onclick="tip('freq')">?</span></div><span class="pv" id="vf">600 MHz</span></div><input type="range" min="100" max="1500" step="5" value="600" id="freq" oninput="run()"></div>
+      <div class="pr"><div class="ph"><div class="pl-w"><span class="pl">Dielectric Er</span><span class="qmark" onclick="tip('er')">?</span></div><span class="pv" id="ver">4.30</span></div><input type="range" min="3.5" max="5.0" step="0.05" value="4.3" id="er" oninput="run()"></div>
+      <div class="pr"><div class="ph"><div class="pl-w"><span class="pl">Height h</span><span class="qmark" onclick="tip('h')">?</span></div><span class="pv" id="vh">1.60 mm</span></div><input type="range" min="0.5" max="3.2" step="0.05" value="1.6" id="h" oninput="run()"></div>
+      <div class="pr"><div class="ph"><div class="pl-w"><span class="pl">Loss tangent tand</span><span class="qmark" onclick="tip('tand')">?</span></div><span class="pv" id="vtd">0.000</span></div><input type="range" min="0.000" max="0.040" step="0.001" value="0.0" id="tand" oninput="run()"></div>
+    </div>
+    <div class="panel">
+      <div class="ptitle">Coupled line dimensions</div>
+      <div class="pr"><div class="ph"><div class="pl-w"><span class="pl">Trace width W</span><span class="qmark" onclick="tip('w')">?</span></div><span class="pv" id="vw">2.60 mm</span></div><input type="range" min="0.3" max="8.0" step="0.05" value="2.6" id="w" oninput="run()"></div>
+      <div class="pr"><div class="ph"><div class="pl-w"><span class="pl">Gap S</span><span class="qmark" onclick="tip('s')">?</span></div><span class="pv" id="vs">0.28 mm</span></div><input type="range" min="0.05" max="2.0" step="0.01" value="0.28" id="s" oninput="run()"></div>
+      <div class="pr"><div class="ph"><div class="pl-w"><span class="pl">Length L</span><span class="qmark" onclick="tip('l')">?</span></div><span class="pv" id="vl">71.0 mm</span></div><input type="range" min="30" max="120" step="0.5" value="71" id="l" oninput="run()"></div>
+    </div>
+    <div class="panel">
+      <div class="ptitle">Target coupling</div>
+      <div class="pr"><div class="ph"><div class="pl-w"><span class="pl">Target S31 coupling</span><span class="qmark" onclick="tip('target')">?</span></div><span class="pv" id="vtgt">-10 dB</span></div><input type="range" min="3" max="30" step="1" value="10" id="target" oninput="run()"></div>
+      <div style="font-size:11px;color:var(--tx3);font-family:'JetBrains Mono',monospace;margin-top:-4px;padding:8px 10px;background:var(--bg3);border-radius:6px;border:1px solid var(--bdr)">
+        Required: <span id="req-zoe" style="color:var(--acc);font-weight:700">—</span> Zoe &nbsp;|&nbsp; <span id="req-zoo" style="color:var(--a3);font-weight:700">—</span> Zoo &nbsp;|&nbsp; C = <span id="req-c" style="color:var(--a2);font-weight:700">—</span>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="ptitle">Computed values</div>
+      <div class="ig">
+        <div class="ii"><div class="il">Eeff single</div><div class="iv" id="eeff0">-</div></div>
+        <div class="ii"><div class="il">Eeff even</div><div class="iv" id="eeff_e">-</div></div>
+        <div class="ii"><div class="il">Eeff odd</div><div class="iv" id="eeff_o">-</div></div>
+        <div class="ii"><div class="il">Z0 single</div><div class="iv" id="z0sv">-</div></div>
+        <div class="ii"><div class="il">Zoe even</div><div class="iv" id="zoev">-</div></div>
+        <div class="ii"><div class="il">Zoo odd</div><div class="iv" id="zoov">-</div></div>
+        <div class="ii"><div class="il">Z0S sqrt(ZoeZoo)</div><div class="iv" id="z0sgv">-</div></div>
+        <div class="ii"><div class="il">C linear</div><div class="iv" id="Cv">-</div></div>
+        <div class="ii"><div class="il">Actual coupling</div><div class="iv" id="cdbv" style="color:var(--a3)">-</div></div>
+        <div class="ii"><div class="il">Theta at f</div><div class="iv" id="thv">-</div></div>
+        <div class="ii"><div class="il">Lambda/4</div><div class="iv" id="lqv">-</div></div>
+        <div class="ii"><div class="il">Alpha dB/in</div><div class="iv" id="alphv">-</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: cards + chart + pcb visual -->
+  <div class="right-col">
+    <div class="mg">
+      <div class="mc" id="mc11"><div class="mlb">S11 reflect</div><div class="mv" id="r11">-</div><div class="msb">target &lt; -20 dB</div><div class="sp" id="st11">-</div></div>
+      <div class="mc" id="mc21"><div class="mlb">S21 through</div><div class="mv" id="r21">-</div><div class="msb">target -0.5 to -2 dB</div><div class="sp" id="st21">-</div></div>
+      <div class="mc" id="mc31"><div class="mlb">S31 coupled</div><div class="mv" id="r31">-</div><div class="msb" id="msb31">target -10 +/- 1 dB</div><div class="sp" id="st31">-</div></div>
+      <div class="mc" id="mc41"><div class="mlb">S41 isolated</div><div class="mv" id="r41">-</div><div class="msb">target &lt; -20 dB</div><div class="sp" id="st41">-</div></div>
+    </div>
+    <div class="mkrow">
+      <div class="mcard"><div class="mklb">Marker freq</div><div class="mkval" id="mk-f" style="color:var(--tx3)">hover chart</div></div>
+      <div class="mcard"><div class="mklb">S11</div><div class="mkval" id="mk-s11" style="color:var(--s11)">- dB</div></div>
+      <div class="mcard"><div class="mklb">S21</div><div class="mkval" id="mk-s21" style="color:var(--s21)">- dB</div></div>
+      <div class="mcard"><div class="mklb">S31 target</div><div class="mkval" id="mk-s31" style="color:var(--s31)">- dB</div></div>
+      <div class="mcard"><div class="mklb">S41</div><div class="mkval" id="mk-s41" style="color:var(--s41)">- dB</div></div>
+    </div>
+    <div class="cpanel">
+      <div class="chdr">
+        <div class="ptitle" style="margin:0">S-parameter plot — 100 MHz to 2 GHz</div>
+        <div class="leg">
+          <div class="li" id="leg11" onclick="toggleLine(0)"><span class="ld" style="background:var(--s11)"></span>S11 reflect</div>
+          <div class="li" id="leg21" onclick="toggleLine(1)"><span class="ld" style="background:var(--s21)"></span>S21 through</div>
+          <div class="li" id="leg31" onclick="toggleLine(2)"><span class="ld" style="background:var(--s31);height:4px"></span>S31 coupled</div>
+          <div class="li" id="leg41" onclick="toggleLine(3)"><span class="ld" style="background:var(--s41)"></span>S41 isolated</div>
+        </div>
+      </div>
+      <div class="cw"><canvas id="spChart"></canvas></div>
+      <div class="chint">Hover for live values · Click legend items to show/hide curves · 0 dB at top (VNA convention)</div>
+    </div>
+
+    <!-- PCB Visual -->
+    <div class="pcb-panel">
+      <div class="ptitle">Physical coupler layout — top copper layer view</div>
+      <div class="pcb-wrap">
+        <canvas id="pcbCanvas" width="860" height="220" style="width:100%;max-width:860px;display:block;border-radius:8px"></canvas>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px">
+        <div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--tx3);padding:6px 10px;background:var(--bg3);border-radius:6px;border:1px solid var(--bdr)">W = <span id="pcb-w" style="color:var(--acc);font-weight:700">-</span></div>
+        <div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--tx3);padding:6px 10px;background:var(--bg3);border-radius:6px;border:1px solid var(--bdr)">S = <span id="pcb-s" style="color:var(--a3);font-weight:700">-</span></div>
+        <div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--tx3);padding:6px 10px;background:var(--bg3);border-radius:6px;border:1px solid var(--bdr)">L = <span id="pcb-l" style="color:var(--a2);font-weight:700">-</span></div>
+        <div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--tx3);padding:6px 10px;background:var(--bg3);border-radius:6px;border:1px solid var(--bdr)">Coupling = <span id="pcb-c" style="color:#7c3aed;font-weight:700">-</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Equation sheet -->
+<div class="eq-sheet">
+  <div class="ptitle" style="margin-bottom:14px">Equation reference — verified against QUCS MSTC source code</div>
+  <div class="eq-grid">
+    <div class="eq-block">
+      <div class="eq-src"><span class="eq-num">1</span>Eeff — Hammerstad-Jensen 1980</div>
+      <div class="eq-line">u = W/h,  g = S/h</div>
+      <div class="eq-line">a = 1 + ln((u^4+(u/52)^2)/(u^4+0.432))/49 + ln(1+(u/18.1)^3)/18.7</div>
+      <div class="eq-line">b = 0.564 * ((Er-0.9)/(Er+3))^0.053</div>
+      <div class="eq-line"><em>Eeff = (Er+1)/2 + (Er-1)/2 * (1+10/u)^(-a*b)</em></div>
+    </div>
+    <div class="eq-block">
+      <div class="eq-src"><span class="eq-num">2</span>Z0 single — Wheeler 1977</div>
+      <div class="eq-line">if W/h &lt; 1:</div>
+      <div class="eq-line"><em>  Z0 = (60/sqrt(Eeff)) * ln(8h/W + W/4h)</em></div>
+      <div class="eq-line">if W/h &gt;= 1:</div>
+      <div class="eq-line"><em>  Z0 = 120*pi / [sqrt(Eeff)*(u+1.393 +0.667*ln(u+1.444))]</em></div>
+    </div>
+    <div class="eq-block">
+      <div class="eq-src"><span class="eq-num">3</span>Even/odd Eeff — Kirschning-Jansen 1984</div>
+      <div class="eq-line">Q1 = 0.8695 * u^0.194</div>
+      <div class="eq-line">Q2 = 1 + 0.7519g + 0.189g^2.31</div>
+      <div class="eq-line">Q3..Q10 = gap coupling factors of u, g</div>
+      <div class="eq-line"><em>Eeff_e = Eeff0 + Q4*(Er-1)/(2*Q2)</em></div>
+      <div class="eq-line"><em>Eeff_o = Eeff0 - Q10*(Er-1)/(2*Q2)</em></div>
+      <div class="eq-line">IEEE MTT-32(1), Jan 1984, pp.83-90</div>
+    </div>
+    <div class="eq-block">
+      <div class="eq-src"><span class="eq-num">4</span>Zoe / Zoo + coupling C</div>
+      <div class="eq-line">Zoe = Z0e_freespace / sqrt(Eeff_e)</div>
+      <div class="eq-line">Zoo = Z0o_freespace / sqrt(Eeff_o)</div>
+      <div class="eq-line"><em>C = (Zoe - Zoo) / (Zoe + Zoo)</em></div>
+      <div class="eq-line"><em>Z0S = sqrt(Zoe * Zoo)</em>  (port match Z)</div>
+      <div class="eq-line">Z0S should equal 50 ohm for port match</div>
+    </div>
+    <div class="eq-block">
+      <div class="eq-src"><span class="eq-num">5</span>S-parameters — Pozar Eq 7.63</div>
+      <div class="eq-line">Eeff_avg = (Eeff_e + Eeff_o) / 2</div>
+      <div class="eq-line">theta = pi * f * L * sqrt(Eeff_avg) / c</div>
+      <div class="eq-line"><em>|S31| = |C*sin(t) / sqrt(1-C^2*cos^2(t))|</em></div>
+      <div class="eq-line"><em>|S21| = |cos(t) / sqrt(1-C^2*cos^2(t))|</em></div>
+      <div class="eq-line"><em>|S21|^2 + |S31|^2 = 1</em>  (power conserved)</div>
+      <div class="eq-line">alpha(dB/in) = 2.3*f(GHz)*tand*sqrt(Eeff)</div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Coupler Simulator · TRN553 Seneca College SEMET · Hammerstad-Jensen (1980) · Wheeler (1977) · Kirschning-Jansen (1984) · Pozar Microwave Engineering 4th Ed. (2012)<br>
+  QUCS verification: W=2.6mm S=0.28mm L=71mm Er=4.3 gives S31=-9.99 dB at 589 MHz
+</footer>
+</div>
+
+<script>
+/* ── Reference line plugin ── */
+var refPlugin = {
+  id: 'reflines',
+  afterDraw: function(chart) {
+    var ctx = chart.ctx;
+    var ca = chart.chartArea;
+    var y = chart.scales.y;
+    if (!y || !ca) return;
+    var tgt = parseFloat(document.getElementById('target').value) || 10;
+    ctx.save();
+    ctx.font = "10px 'JetBrains Mono',monospace";
+    /* target dB line */
+    var ytgt = y.getPixelForValue(-tgt);
+    if (ytgt >= ca.top && ytgt <= ca.bottom) {
+      ctx.beginPath(); ctx.setLineDash([7,4]);
+      ctx.strokeStyle = 'rgba(10,143,42,0.65)'; ctx.lineWidth = 2;
+      ctx.moveTo(ca.left, ytgt); ctx.lineTo(ca.right, ytgt); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(6,95,70,0.85)'; ctx.textAlign = 'left';
+      ctx.fillText('-' + tgt + ' dB target', ca.left + 6, ytgt - 5);
+    }
+    /* 0 dB line */
+    var y0 = y.getPixelForValue(0);
+    if (y0 >= ca.top && y0 <= ca.bottom) {
+      ctx.beginPath(); ctx.setLineDash([4,4]);
+      ctx.strokeStyle = 'rgba(26,111,212,0.3)'; ctx.lineWidth = 1;
+      ctx.moveTo(ca.left, y0); ctx.lineTo(ca.right, y0); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(26,111,212,0.6)'; ctx.textAlign = 'left';
+      ctx.fillText('0 dB', ca.left + 6, y0 - 4);
+    }
+    ctx.restore();
+  }
+};
+Chart.register(refPlugin);
+
+/* ── Tooltip content ── */
+var TIPS = {
+  freq:   {title:'Design frequency f', body:'<b>What it is:</b> Center frequency your coupler targets. Fixed at 600 MHz for this project.<br><br><b>Effect on graph:</b> Changes where the design-point sits. To move the S31 peak to a different frequency, adjust L.<div class="tt-eff">Key: physical length L controls peak position, not this slider<br>Use L slider to tune the S31 peak to your target frequency</div><div class="tt-eq">lambda/4 = c / (4 * f * sqrt(Eeff_avg))<br>At theta=90 degrees: S31 is maximum = C</div>'},
+  er:     {title:'Dielectric constant Er', body:'<b>What it is:</b> How much FR4 slows the EM wave vs free space. FR4 varies 4.1-4.7. QUCS used Er=4.3. Boards vary +/- 0.2 batch to batch.<br><br><b>Effect on graph:</b> Higher Er shortens effective wavelength so S31 peak shifts up in frequency.<div class="tt-eff">Higher Er: S31 peak shifts UP in frequency<br>Lower Er: S31 peak shifts DOWN in frequency<br>Explains why measured freq differs from simulated</div><div class="tt-eq">Eeff = (Er+1)/2 + (Er-1)/2*(1+10/u)^(-ab)<br>Hammerstad-Jensen 1980</div>'},
+  h:      {title:'Substrate height h', body:'<b>What it is:</b> PCB thickness from top copper to bottom ground plane. Seneca LPKF board is 1.6 mm standard FR4.<br><br><b>Effect on graph:</b> h sets W/h and S/h ratios. Thicker boards need wider traces for same Z0 and weaken coupling for same gap S.<div class="tt-eff">Thicker h: Z0 rises, coupling weakens for same S<br>Thinner h: coupling strengthens for same physical S<br>Keep at 1.6 mm - fixed by your board spec</div><div class="tt-eq">S/h and W/h are the normalized ratios QUCS uses.<br>Physical S alone does not determine coupling.</div>'},
+  tand:   {title:'Loss tangent tan-delta', body:'<b>What it is:</b> Dielectric loss of FR4. FR4 is about 0.02 at 600 MHz. QUCS used tand=0 for lossless ideal result.<br><br><b>Effect on graph:</b> Adds insertion loss to S21 and S31 making them slightly more negative. About 0.3-0.5 dB at 600 MHz over 70mm.<div class="tt-eff">Set 0.000 to match QUCS lossless result<br>Set 0.020 for realistic FR4 prediction<br>Only S21 and S31 are affected - S11 unchanged</div><div class="tt-eq">alpha (dB/in) = 2.3 * f(GHz) * tand * sqrt(Eeff)<br>RF/Microwave design doc, slide 117</div>'},
+  w:      {title:'Coupled trace width W', body:'<b>What it is:</b> Width of each parallel copper trace. QUCS used W=2.6mm giving Z0 about 55 ohm on FR4 1.6mm making Z0S close to 50 ohm.<br><br><b>Effect on graph:</b> W changes both Zoe and Zoo which changes C and the S31 coupling level. Also visible in the PCB diagram below.<div class="tt-eff">Wider W: lowers Z0, changes coupling coefficient C<br>Narrower W: raises Z0, also changes C<br>W=2.6mm QUCS-verified for -10dB at 600 MHz</div><div class="tt-eq">Z0S = sqrt(Zoe * Zoo) should equal 50 ohm<br>Mismatch raises S11 above -20 dB</div>'},
+  s:      {title:'Gap S between traces', body:'<b>What it is:</b> Physical spacing between the two copper traces. Your most sensitive tuning parameter. QUCS: S=0.28mm gives S31=-9.99 dB at 589 MHz.<br><br><b>Effect on graph and PCB diagram:</b> Directly controls coupling C. Even 0.05mm changes S31 by 1-2 dB. Gap is visible in the PCB diagram below.<div class="tt-eff">Smaller S: stronger coupling, S31 rises toward 0 dB<br>Larger S: weaker coupling, S31 drops toward -20 dB<br>LPKF minimum gap: 0.15 mm - do not go below<br>Fabricated gap often 0.02-0.05mm wider than designed</div><div class="tt-eq">C = (Zoe - Zoo) / (Zoe + Zoo)<br>Smaller S gives bigger (Zoe-Zoo) gives bigger C</div>'},
+  l:      {title:'Coupled section length L', body:'<b>What it is:</b> Physical length of the two parallel traces. QUCS used L=71mm giving S31 peak at 589 MHz. Try L=69-70mm for 600 MHz.<br><br><b>Effect on graph and PCB diagram:</b> Longer L shifts S31 peak DOWN in frequency. Length is shown to scale in the PCB diagram below.<div class="tt-eff">Longer L: S31 peak shifts DOWN in frequency<br>Shorter L: S31 peak shifts UP in frequency<br>QUCS L=71mm gave peak at 589 MHz<br>Try L around 69-70mm for peak at 600 MHz</div><div class="tt-eq">L_ideal = c / (4 * f * sqrt(Eeff_avg))<br>theta = pi * f * L * sqrt(Eeff_avg) / c<br>Maximum S31 when theta = 90 degrees</div>'},
+  target: {title:'Target S31 coupling', body:'<b>What it is:</b> The desired coupling level at the coupled port (S31). Your project requires -10 dB. Changing this updates the target dashed line on the graph and recalculates the required Zoe and Zoo.<br><br><b>Effect on graph:</b> The green dashed reference line moves to show your target. The pass/fail check for S31 updates to match your new target.<div class="tt-eff">-3 dB: 50% of power coupled (equal split)<br>-6 dB: 25% of power coupled<br>-10 dB: 10% of power coupled (your project target)<br>-20 dB: 1% of power coupled (very weak)</div><div class="tt-eq">C_linear = 10^(-target_dB/20)<br>Required Zoe = 50 * sqrt((1+C)/(1-C))<br>Required Zoo = 50 * sqrt((1-C)/(1+C))</div>'}
+};
+
+function tip(k) {
+  var t = TIPS[k]; if (!t) return;
+  document.getElementById('ttT').textContent = t.title;
+  document.getElementById('ttB').innerHTML = t.body;
+  document.getElementById('ttOv').classList.add('show');
+}
+function closeTT(e, f) {
+  if (f || (e && e.target === document.getElementById('ttOv')))
+    document.getElementById('ttOv').classList.remove('show');
+}
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeTT(null, true); });
+
+/* ── Physics ── */
+function eeff_hj(er, W, h) {
+  var u = W / h;
+  var a = 1 + Math.log((Math.pow(u,4) + Math.pow(u/52,2)) / (Math.pow(u,4) + 0.432)) / 49
+            + Math.log(1 + Math.pow(u/18.1, 3)) / 18.7;
+  var b = 0.564 * Math.pow((er-0.9)/(er+3), 0.053);
+  return (er+1)/2 + (er-1)/2 * Math.pow(1+10/u, -a*b);
+}
+function z0_w(er, W, h) {
+  var u = W/h, ee = eeff_hj(er, W, h);
+  return u < 1 ? (60/Math.sqrt(ee)) * Math.log(8/u + u/4)
+               : (120*Math.PI) / (Math.sqrt(ee) * (u + 1.393 + 0.667*Math.log(u+1.444)));
+}
+function z0_fs(W, h) {
+  var u = W/h;
+  return u < 1 ? 60 * Math.log(8/u + u/4)
+               : (120*Math.PI) / (u + 1.393 + 0.667*Math.log(u+1.444));
+}
+function ee_e_kj(er, W, h, S) {
+  var u=W/h, g=S/h, ee0=eeff_hj(er,W,h);
+  var Q1=0.8695*Math.pow(u,0.194);
+  var Q2=1+0.7519*g+0.189*Math.pow(g,2.31);
+  var Q3=0.1975+Math.pow(16.6+Math.pow(8.4/g,6),-0.387)+Math.log(Math.pow(g,10)/(1+Math.pow(g/3.4,10)))/241;
+  var Q4=2*Q1/Q2*(Math.exp(-g)*Math.pow(u,Q3)+2-Math.exp(-g));
+  return ee0+Q4*(er-1)/(2*Q2);
+}
+function ee_o_kj(er, W, h, S) {
+  var u=W/h, g=S/h, ee0=eeff_hj(er,W,h);
+  var Q1=0.8695*Math.pow(u,0.194);
+  var Q2=1+0.7519*g+0.189*Math.pow(g,2.31);
+  var Q7=(10+190*g*g)/(1+82.3*Math.pow(g,3));
+  var Q8=Math.exp(-6.5-0.95*Math.log(g)-Math.pow(g/0.15,5));
+  var Q9=Math.log(Q7)*(Q8+1/16.5);
+  var Q4b=2*Q1/Q2*(Math.exp(-g)*Math.pow(u,0.1975)+2-Math.exp(-g));
+  var Q10=Q2/Q1*(Q9-Math.exp(-g)*Math.pow(u,-0.1975)-0.5*Q4b/Q2);
+  return Math.max(ee0-Math.abs(Q10*(er-1)/(2*Q2)),1.0);
+}
+function calcAll(er, W, h, S) {
+  var ee0=eeff_hj(er,W,h), z0=z0_w(er,W,h);
+  var ee_e=ee_e_kj(er,W,h,S), ee_o=ee_o_kj(er,W,h,S);
+  var u=W/h, g=S/h;
+  var th2=Math.tanh, ch=Math.cosh;
+  var dWe=Math.log(1+Math.pow(th2(Math.PI*g/2),2)*4*Math.exp(-1)/(Math.pow(ch(Math.PI*(2*u+g)/2)/ch(Math.PI*g/2),2)+1))/(2*Math.PI);
+  var dWo=-Math.log(1+(1-Math.exp(-g))*Math.pow(th2(Math.PI*u/2),2))/(2*Math.PI);
+  var ue=u+Math.max(dWe,0), uo=Math.max(u+dWo,0.05);
+  var z0ef=ue<1?60*Math.log(8/ue+ue/4):(120*Math.PI)/(ue+1.393+0.667*Math.log(ue+1.444));
+  var z0of=uo<1?60*Math.log(8/uo+uo/4):(120*Math.PI)/(uo+1.393+0.667*Math.log(uo+1.444));
+  var Zoe=z0ef/Math.sqrt(ee_e), Zoo=Math.max(z0of/Math.sqrt(ee_o),5);
+  var C=(Zoe-Zoo)/(Zoe+Zoo);
+  return {ee0:ee0,z0:z0,ee_e:ee_e,ee_o:ee_o,Zoe:Zoe,Zoo:Zoo,C:C,Z0sg:Math.sqrt(Zoe*Zoo)};
+}
+
+function sfill(el) {
+  el.style.setProperty('--pct', ((el.value-el.min)/(el.max-el.min)*100)+'%');
+}
+
+function setM(id, mc, st, v, pFn, cFn) {
+  var el=document.getElementById(id), mcel=document.getElementById(mc), stel=document.getElementById(st);
+  el.textContent = v.toFixed(1)+' dB';
+  var ok=pFn(v), cl=cFn?cFn(v):false;
+  el.className='mv '+(ok?'pass':cl?'close':'fail');
+  mcel.className='mc '+(ok?'pass':cl?'close':'fail');
+  stel.textContent=ok?'PASS':cl?'CLOSE':'ADJUST';
+  stel.className='sp '+(ok?'pass':cl?'close':'fail');
+}
+
+/* ── PCB visual renderer ── */
+function drawPCB(W_mm, S_mm, L_mm, coupDB) {
+  var canvas = document.getElementById('pcbCanvas');
+  var ctx = canvas.getContext('2d');
+  var cw = canvas.width, ch = canvas.height;
+  ctx.clearRect(0,0,cw,ch);
+
+  var boardColor = '#1a6b2e';
+  var traceColor = '#d4a017';
+  var traceBorder = '#8a6000';
+  var textColor = '#e8f8e0';
+  var dimColor = '#ffffff';
+  var smaColor = '#b8922a';
+
+  /* Board background */
+  ctx.fillStyle = boardColor;
+  ctx.strokeStyle = '#145524';
+  ctx.lineWidth = 2;
+  roundRect(ctx, 0, 0, cw, ch, 10);
+  ctx.fill(); ctx.stroke();
+
+  /* Board subtle grid */
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.lineWidth = 0.5;
+  for (var gx=20; gx<cw; gx+=20) { ctx.beginPath(); ctx.moveTo(gx,0); ctx.lineTo(gx,ch); ctx.stroke(); }
+  for (var gy=20; gy<ch; gy+=20) { ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(cw,gy); ctx.stroke(); }
+
+  /* Mounting holes */
+  drawHole(ctx, 28, 28);
+  drawHole(ctx, cw-28, 28);
+  drawHole(ctx, 28, ch-28);
+  drawHole(ctx, cw-28, ch-28);
+
+  /* Layout geometry */
+  var SCALE = 3.5; /* pixels per mm */
+  var L_px = Math.min(L_mm * SCALE, 560);
+  var W_px = Math.max(W_mm * SCALE, 6);
+  var S_px = Math.max(S_mm * SCALE, 2);
+  var feedLen = 60;
+
+  var boardCX = cw / 2;
+  var traceTop = ch/2 - S_px/2 - W_px;
+  var traceBot = ch/2 + S_px/2;
+  var traceLeft = boardCX - L_px/2;
+  var traceRight = boardCX + L_px/2;
+
+  /* SMA connectors - left side */
+  drawSMA(ctx, traceLeft - feedLen - 28, traceTop + W_px/2, 'left', smaColor);
+  drawSMA(ctx, traceLeft - feedLen - 28, traceBot + W_px/2, 'left', smaColor);
+
+  /* SMA connectors - right side */
+  drawSMA(ctx, traceRight + feedLen + 28, traceTop + W_px/2, 'right', smaColor);
+  drawSMA(ctx, traceRight + feedLen + 28, traceBot + W_px/2, 'right', smaColor);
+
+  /* Feed lines */
+  ctx.fillStyle = traceColor; ctx.strokeStyle = traceBorder; ctx.lineWidth = 0.5;
+  /* left feeds */
+  ctx.fillRect(traceLeft-feedLen, traceTop, feedLen, W_px); ctx.strokeRect(traceLeft-feedLen, traceTop, feedLen, W_px);
+  ctx.fillRect(traceLeft-feedLen, traceBot, feedLen, W_px); ctx.strokeRect(traceLeft-feedLen, traceBot, feedLen, W_px);
+  /* right feeds */
+  ctx.fillRect(traceRight, traceTop, feedLen, W_px); ctx.strokeRect(traceRight, traceTop, feedLen, W_px);
+  ctx.fillRect(traceRight, traceBot, feedLen, W_px); ctx.strokeRect(traceRight, traceBot, feedLen, W_px);
+
+  /* Main coupled traces */
+  ctx.fillStyle = traceColor; ctx.strokeStyle = traceBorder; ctx.lineWidth = 0.8;
+  ctx.fillRect(traceLeft, traceTop, L_px, W_px); ctx.strokeRect(traceLeft, traceTop, L_px, W_px);
+  ctx.fillRect(traceLeft, traceBot, L_px, W_px); ctx.strokeRect(traceLeft, traceBot, L_px, W_px);
+
+  /* Gap highlight */
+  ctx.fillStyle = boardColor;
+  ctx.fillRect(traceLeft, traceTop+W_px, L_px, S_px);
+  /* Gap label */
+  ctx.font = 'bold 9px JetBrains Mono,monospace';
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.textAlign = 'center';
+  ctx.fillText('G=' + S_mm.toFixed(2) + 'mm', boardCX, ch/2 + 1);
+
+  /* Port labels */
+  ctx.font = 'bold 10px JetBrains Mono,monospace';
+  ctx.fillStyle = textColor;
+  ctx.textAlign = 'right';
+  ctx.fillText('P1 IN', traceLeft-feedLen-32, traceTop+W_px/2+4);
+  ctx.fillText('P4 ISO', traceLeft-feedLen-32, traceBot+W_px/2+4);
+  ctx.textAlign = 'left';
+  ctx.fillText('P2 OUT', traceRight+feedLen+32, traceTop+W_px/2+4);
+  ctx.fillText('P3 CUP', traceRight+feedLen+32, traceBot+W_px/2+4);
+
+  /* Top label */
+  ctx.font = 'bold 11px Syne,sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.textAlign = 'center';
+  ctx.fillText('DIRECTIONAL COUPLER  ' + coupDB.toFixed(1) + ' dB  |  FR4', boardCX, 18);
+
+  /* Dimension lines */
+  /* L dimension */
+  var dimY = traceBot + W_px + 18;
+  drawDimLine(ctx, traceLeft, traceRight, dimY, dimColor, 'L=' + L_mm.toFixed(1) + ' mm (\u03bb/4)');
+
+  /* W dimension */
+  var dimX = traceLeft - feedLen - 52;
+  drawDimLineV(ctx, traceTop, traceTop+W_px, dimX, dimColor, 'W=' + W_mm.toFixed(2));
+
+  /* S dimension */
+  drawDimLineV(ctx, traceTop+W_px, traceBot, dimX - 22, dimColor, 'S=' + S_mm.toFixed(2));
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y);
+  ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+}
+
+function drawHole(ctx, x, y) {
+  ctx.beginPath(); ctx.arc(x,y,7,0,2*Math.PI);
+  ctx.fillStyle='#0f4a1e'; ctx.fill();
+  ctx.strokeStyle='rgba(255,255,255,0.3)'; ctx.lineWidth=1; ctx.stroke();
+  ctx.beginPath(); ctx.arc(x,y,4,0,2*Math.PI);
+  ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fill();
+}
+
+function drawSMA(ctx, x, y, side, col) {
+  var bw=26, bh=22;
+  var bx = side==='left' ? x-bw/2 : x-bw/2;
+  ctx.fillStyle=col; ctx.strokeStyle='#7a6010'; ctx.lineWidth=1;
+  roundRect(ctx, bx, y-bh/2, bw, bh, 3);
+  ctx.fill(); ctx.stroke();
+  /* inner ring */
+  ctx.beginPath(); ctx.arc(x, y, 8, 0, 2*Math.PI);
+  ctx.fillStyle='#111'; ctx.fill();
+  ctx.beginPath(); ctx.arc(x, y, 4, 0, 2*Math.PI);
+  ctx.fillStyle=col; ctx.fill();
+}
+
+function drawDimLine(ctx, x1, x2, y, col, label) {
+  ctx.strokeStyle=col; ctx.lineWidth=0.8; ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.moveTo(x1,y); ctx.lineTo(x2,y); ctx.stroke();
+  ctx.setLineDash([]);
+  /* ticks */
+  ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(x1,y-5); ctx.lineTo(x1,y+5); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x2,y-5); ctx.lineTo(x2,y+5); ctx.stroke();
+  /* label */
+  ctx.font='bold 10px JetBrains Mono,monospace';
+  ctx.fillStyle=col; ctx.textAlign='center';
+  ctx.fillText(label, (x1+x2)/2, y+14);
+}
+
+function drawDimLineV(ctx, y1, y2, x, col, label) {
+  if (Math.abs(y2-y1) < 3) return;
+  ctx.strokeStyle=col; ctx.lineWidth=0.7; ctx.setLineDash([3,2]);
+  ctx.beginPath(); ctx.moveTo(x,y1); ctx.lineTo(x,y2); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(x-4,y1); ctx.lineTo(x+4,y1); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x-4,y2); ctx.lineTo(x+4,y2); ctx.stroke();
+  ctx.font='9px JetBrains Mono,monospace';
+  ctx.fillStyle=col; ctx.textAlign='center';
+  ctx.save(); ctx.translate(x-6,(y1+y2)/2); ctx.rotate(-Math.PI/2);
+  ctx.fillText(label,0,0); ctx.restore();
+}
+
+/* ── Chart state ── */
+var chart = null;
+var vis = [true, true, true, true];
+var NPTS = 400, FSTART = 100e6, FSTOP = 2000e6;
+var gFA = [];
+for (var _i=0; _i<=NPTS; _i++) {
+  gFA.push(((FSTART + _i*(FSTOP-FSTART)/NPTS)/1e6).toFixed(1));
+}
+
+function toggleLine(i) {
+  vis[i] = !vis[i];
+  var ids = ['leg11','leg21','leg31','leg41'];
+  document.getElementById(ids[i]).classList.toggle('off', !vis[i]);
+  if (chart) { chart.data.datasets[i].hidden = !vis[i]; chart.update('none'); }
+}
+
+function run() {
+  document.querySelectorAll('input[type=range]').forEach(function(el){ sfill(el); });
+  var f    = parseFloat(document.getElementById('freq').value)*1e6;
+  var er   = parseFloat(document.getElementById('er').value);
+  var h    = parseFloat(document.getElementById('h').value)*1e-3;
+  var tand = parseFloat(document.getElementById('tand').value);
+  var W    = parseFloat(document.getElementById('w').value)*1e-3;
+  var S    = parseFloat(document.getElementById('s').value)*1e-3;
+  var L    = parseFloat(document.getElementById('l').value)*1e-3;
+  var tgt  = parseFloat(document.getElementById('target').value);
+
+  document.getElementById('vf').textContent   = (f/1e6).toFixed(0)+' MHz';
+  document.getElementById('ver').textContent  = er.toFixed(2);
+  document.getElementById('vh').textContent   = (h*1e3).toFixed(2)+' mm';
+  document.getElementById('vtd').textContent  = tand.toFixed(3);
+  document.getElementById('vw').textContent   = (W*1e3).toFixed(2)+' mm';
+  document.getElementById('vs').textContent   = (S*1e3).toFixed(2)+' mm';
+  document.getElementById('vl').textContent   = (L*1e3).toFixed(1)+' mm';
+  document.getElementById('vtgt').textContent = '-'+tgt+' dB';
+  document.getElementById('msb31').textContent = 'target -'+tgt+' +/-1 dB';
+
+  /* Target coupling requirements */
+  var Clin = Math.pow(10, -tgt/20);
+  var Zoe_req = 50*Math.sqrt((1+Clin)/(1-Clin));
+  var Zoo_req = 50*Math.sqrt((1-Clin)/(1+Clin));
+  document.getElementById('req-zoe').textContent = Zoe_req.toFixed(1)+' ohm';
+  document.getElementById('req-zoo').textContent = Zoo_req.toFixed(1)+' ohm';
+  document.getElementById('req-c').textContent   = Clin.toFixed(4);
+
+  var res = calcAll(er, W, h, S);
+  var ee0=res.ee0, z0=res.z0, ee_e=res.ee_e, ee_o=res.ee_o;
+  var Zoe=res.Zoe, Zoo=res.Zoo, C=res.C, Z0sg=res.Z0sg;
+  var ee_avg=(ee_e+ee_o)/2;
+  var clight=2.998e8;
+  var lq=clight/Math.sqrt(ee_avg)/(4*f)*1e3;
+  var th_deg=Math.PI*f*L*Math.sqrt(ee_avg)/clight*(180/Math.PI);
+  var alpha=2.3*(f/1e9)*tand*Math.sqrt(ee_avg);
+  var mismatch=(Z0sg-50)/(Z0sg+50);
+
+  document.getElementById('eeff0').textContent  = ee0.toFixed(4);
+  document.getElementById('eeff_e').textContent = ee_e.toFixed(4);
+  document.getElementById('eeff_o').textContent = ee_o.toFixed(4);
+  document.getElementById('z0sv').textContent   = z0.toFixed(2)+' ohm';
+  document.getElementById('zoev').textContent   = Zoe.toFixed(2)+' ohm';
+  document.getElementById('zoov').textContent   = Zoo.toFixed(2)+' ohm';
+  document.getElementById('z0sgv').textContent  = Z0sg.toFixed(2)+' ohm';
+  document.getElementById('Cv').textContent     = C.toFixed(5);
+  document.getElementById('cdbv').textContent   = (20*Math.log10(Math.abs(C))).toFixed(2)+' dB';
+  document.getElementById('thv').textContent    = th_deg.toFixed(2)+' deg';
+  document.getElementById('lqv').textContent    = lq.toFixed(2)+' mm';
+  document.getElementById('alphv').textContent  = alpha.toFixed(4)+' dB/in';
+
+  /* S-param sweep */
+  var s11=[],s21=[],s31=[],s41=[];
+  for (var i=0; i<=NPTS; i++) {
+    var fi=FSTART+i*(FSTOP-FSTART)/NPTS;
+    var th=Math.PI*fi*L*Math.sqrt(ee_avg)/clight;
+    var sT=Math.sin(th), cT=Math.cos(th), C2=C*C;
+    var D=Math.sqrt(Math.max(1-C2*cT*cT,1e-15));
+    var af=2.3*(fi/1e9)*tand*Math.sqrt(ee_avg)/0.0254;
+    var lf=Math.pow(10,-af*L/20);
+    var S31m=Math.abs(C*sT/D)*lf;
+    var S21m=Math.abs(cT/D)*lf;
+    var S11m=Math.abs(mismatch*Math.cos(2*th));
+    s11.push(S11m<1e-10?-80:parseFloat((20*Math.log10(S11m)).toFixed(3)));
+    s21.push(parseFloat((20*Math.log10(Math.max(S21m,1e-10))).toFixed(3)));
+    s31.push(parseFloat((20*Math.log10(Math.max(S31m,1e-10))).toFixed(3)));
+    s41.push(-60);
+  }
+
+  /* Metric cards */
+  var idx=Math.round((f/1e6-100)/(1900/NPTS));
+  idx=Math.max(0,Math.min(idx,NPTS));
+  var tol=1;
+  setM('r11','mc11','st11',s11[idx],function(v){return v<-20;},function(v){return v<-15;});
+  setM('r21','mc21','st21',s21[idx],function(v){return v>=-2&&v<=-0.1;},function(v){return v>=-4&&v<=-0.1;});
+  setM('r31','mc31','st31',s31[idx],
+    function(v){return Math.abs(v-(-tgt))<=tol;},
+    function(v){return Math.abs(v-(-tgt))<=2.5;});
+  setM('r41','mc41','st41',s41[idx],function(v){return v<-20;},null);
+
+  /* PCB visual */
+  drawPCB(W*1e3, S*1e3, L*1e3, 20*Math.log10(Math.abs(C)));
+  document.getElementById('pcb-w').textContent = (W*1e3).toFixed(2)+' mm';
+  document.getElementById('pcb-s').textContent = (S*1e3).toFixed(2)+' mm';
+  document.getElementById('pcb-l').textContent = (L*1e3).toFixed(1)+' mm';
+  document.getElementById('pcb-c').textContent = (20*Math.log10(Math.abs(C))).toFixed(1)+' dB';
+
+  /* Chart */
+  if (!chart) {
+    chart = new Chart(document.getElementById('spChart'), {
+      type: 'line',
+      data: {
+        labels: gFA,
+        datasets: [
+          {label:'S11',data:s11,borderColor:'#c0392b',borderWidth:1.5,pointRadius:0,tension:0.25,hidden:false},
+          {label:'S21',data:s21,borderColor:'#1a6fd4',borderWidth:2,  pointRadius:0,tension:0.25,hidden:false},
+          {label:'S31',data:s31,borderColor:'#0a8f2a',borderWidth:2.5,pointRadius:0,tension:0.25,hidden:false},
+          {label:'S41',data:s41,borderColor:'#7c3aed',borderWidth:1.5,pointRadius:0,tension:0.25,hidden:false}
+        ]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        animation:{duration:160, easing:'easeInOutQuad'},
+        interaction:{mode:'index', intersect:false},
+        plugins:{
+          legend:{display:false},
+          tooltip:{
+            enabled:true,
+            backgroundColor:'rgba(255,255,255,0.97)',
+            titleColor:'#374151',
+            bodyColor:'#111827',
+            borderColor:'#d0d8e8',
+            borderWidth:1,
+            cornerRadius:8,
+            padding:11,
+            titleFont:{family:"'JetBrains Mono'",size:10},
+            bodyFont:{family:"'JetBrains Mono'",size:11},
+            callbacks:{
+              title:function(it){return 'f = '+parseFloat(it[0].label).toFixed(0)+' MHz';},
+              label:function(it){return ' '+it.dataset.label+' = '+it.raw.toFixed(2)+' dB';}
+            },
+            external:function(ctx){
+              var tp=ctx.tooltip;
+              if(!tp.dataPoints||!tp.dataPoints.length)return;
+              document.getElementById('mk-f').textContent=parseFloat(tp.dataPoints[0].label).toFixed(0)+' MHz';
+              var ids=['mk-s11','mk-s21','mk-s31','mk-s41'];
+              for(var i=0;i<ids.length;i++){
+                var el=document.getElementById(ids[i]);
+                if(el&&tp.dataPoints[i])el.textContent=tp.dataPoints[i].raw.toFixed(2)+' dB';
+              }
+            }
+          }
+        },
+        scales:{
+          x:{
+            title:{display:true,text:'Frequency (MHz)',color:'#6b7280',font:{size:11,family:"'JetBrains Mono'"}},
+            ticks:{color:'#6b7280',maxTicksLimit:11,font:{size:9,family:"'JetBrains Mono'"},
+              callback:function(v,i){return i%Math.ceil((NPTS+1)/11)===0?Math.round(parseFloat(gFA[i])):null;}},
+            grid:{color:'rgba(0,0,0,0.06)'},border:{color:'#d0d8e8'}
+          },
+          y:{
+            reverse:true, min:-50, max:5,
+            title:{display:true,text:'Magnitude (dB) — 0 dB at top',color:'#6b7280',font:{size:11,family:"'JetBrains Mono'"}},
+            ticks:{stepSize:5,color:'#6b7280',font:{size:9,family:"'JetBrains Mono'"},
+              callback:function(v){return v+' dB';}},
+            grid:{color:'rgba(0,0,0,0.06)'},border:{color:'#d0d8e8'}
+          }
+        }
+      }
+    });
+  } else {
+    chart.data.datasets[0].data=s11;
+    chart.data.datasets[1].data=s21;
+    chart.data.datasets[2].data=s31;
+    chart.data.datasets[3].data=s41;
+    chart.update();
+  }
+}
+
+document.querySelectorAll('input[type=range]').forEach(function(el){
+  el.addEventListener('input',function(){sfill(el);});
+  sfill(el);
+});
+run();
+</script>
+</body>
+</html>
